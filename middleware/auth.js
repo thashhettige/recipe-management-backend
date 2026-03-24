@@ -1,10 +1,7 @@
 const jwt = require('jsonwebtoken');
 const { User } = require('../models');
 
-/**
- * Middleware to verify JWT token and authenticate user
- */
-const authenticate = async (req, res, next) => {
+const authMiddleware = async (req, res, next) => {
   try {
     // Get token from header
     const authHeader = req.headers.authorization;
@@ -13,18 +10,19 @@ const authenticate = async (req, res, next) => {
       return res.status(401).json({ error: 'No token provided' });
     }
 
+    // Extract token
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
 
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Get user from token
+    // Find user
     const user = await User.findByPk(decoded.id, {
       attributes: { exclude: ['password'] }
     });
 
     if (!user) {
-      return res.status(401).json({ error: 'User not found' });
+      return res.status(401).json({ error: 'Invalid token' });
     }
 
     // Attach user to request object
@@ -37,36 +35,8 @@ const authenticate = async (req, res, next) => {
     if (error.name === 'TokenExpiredError') {
       return res.status(401).json({ error: 'Token expired' });
     }
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: 'Authentication failed' });
   }
 };
 
-/**
- * Optional authentication - doesn't fail if no token provided
- */
-const optionalAuth = async (req, res, next) => {
-  try {
-    const authHeader = req.headers.authorization;
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return next();
-    }
-
-    const token = authHeader.substring(7);
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findByPk(decoded.id, {
-      attributes: { exclude: ['password'] }
-    });
-
-    if (user) {
-      req.user = user;
-    }
-    
-    next();
-  } catch (error) {
-    // Continue without user if token is invalid
-    next();
-  }
-};
-
-module.exports = { authenticate, optionalAuth };
+module.exports = authMiddleware;

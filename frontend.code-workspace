@@ -1,0 +1,14 @@
+{
+  "folders": [
+	{
+		"path": "../frontend"
+	},
+	{
+		"path": "."
+	},
+	{
+		"path": "../../foodshare-backend/backend"
+	}
+],
+  "settings": {}
+}

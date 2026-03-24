@@ -1,172 +1,102 @@
+// server.js
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const helmet = require('helmet');
-const morgan = require('morgan');
-require('dotenv').config();
-
 const db = require('./models');
-const app = express();
-const PORT = process.env.PORT || 3000;
 
-// Middleware
-app.use(helmet());
+const app = express();
+
+// ============================================
+// MIDDLEWARE
+// ============================================
+// Enable CORS for your frontend - Allow multiple origins
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || '*'
+  origin: [
+    'http://localhost:5173',  // Vite default
+    'http://localhost:5174',  // Vite alternative
+    'http://localhost:3000',  // React default
+    'http://localhost:3001',  // React alternative
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:5174',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:3001'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
-app.use(morgan('dev'));
+
+// Parse JSON bodies
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Test database connection
-db.sequelize.authenticate()
-  .then(() => {
-    console.log('✅ Database connection established');
-  })
-  .catch(err => {
-    console.error('❌ Database connection failed:', err.message);
-    console.error('   Make sure MySQL is running and credentials are correct');
-  });
+// Request logging middleware (helpful for debugging)
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  next();
+});
 
-// Sync database (development only)
-if (process.env.NODE_ENV === 'development') {
-  db.sequelize.sync({ alter: false })
-    .then(() => console.log('✅ Database synced'))
-    .catch(err => console.error('❌ Database sync failed:', err.message));
-}
+// ============================================
+// ROUTES
+// ============================================
+// Import auth routes
+const authRoutes = require('./routes/auth');
 
-// Root endpoint
+// Use auth routes
+app.use('/api/auth', authRoutes);
+
+// Test route
 app.get('/', (req, res) => {
-  res.json({
-    message: 'Welcome to FOODSHARE API',
-    version: '1.0.0',
-    status: 'Server is running',
+  res.json({ 
+    message: 'API is running',
     endpoints: {
-      auth: {
-        register: 'POST /api/auth/register',
-        login: 'POST /api/auth/login',
-        me: 'GET /api/auth/me (requires token)'
-      },
-      users: {
-        list: 'GET /api/users',
-        show: 'GET /api/users/:id',
-        follow: 'POST /api/users/:id/follow (requires token)'
-      },
-      recipes: {
-        list: 'GET /api/recipes',
-        create: 'POST /api/recipes (requires token)',
-        show: 'GET /api/recipes/:id',
-        like: 'POST /api/recipes/:id/like (requires token)'
-      }
+      register: 'POST /api/auth/register',
+      login: 'POST /api/auth/login',
+      me: 'GET /api/auth/me'
     }
   });
 });
 
-// ====================================
-// IMPORT ROUTES
-// ====================================
-// Try to load routes with different possible names
-let authRoutes, userRoutes, recipeRoutes;
-
-try {
-  // Try auth.js first, then authRoutes.js
-  try {
-    authRoutes = require('./routes/auth');
-    console.log('✅ Loaded routes/auth.js');
-  } catch (e) {
-    authRoutes = require('./routes/authRoutes');
-    console.log('✅ Loaded routes/authRoutes.js');
-  }
-} catch (error) {
-  console.error('❌ Could not load auth routes:', error.message);
-  console.error('   Expected: routes/auth.js or routes/authRoutes.js');
-}
-
-try {
-  // Try users.js first, then userRoutes.js
-  try {
-    userRoutes = require('./routes/users');
-    console.log('✅ Loaded routes/users.js');
-  } catch (e) {
-    userRoutes = require('./routes/userRoutes');
-    console.log('✅ Loaded routes/userRoutes.js');
-  }
-} catch (error) {
-  console.error('❌ Could not load user routes:', error.message);
-  console.error('   Expected: routes/users.js or routes/userRoutes.js');
-}
-
-try {
-  // Try recipes.js first, then recipeRoutes.js
-  try {
-    recipeRoutes = require('./routes/recipes');
-    console.log('✅ Loaded routes/recipes.js');
-  } catch (e) {
-    recipeRoutes = require('./routes/recipeRoutes');
-    console.log('✅ Loaded routes/recipeRoutes.js');
-  }
-} catch (error) {
-  console.error('❌ Could not load recipe routes:', error.message);
-  console.error('   Expected: routes/recipes.js or routes/recipeRoutes.js');
-}
-
-// ====================================
-// USE ROUTES
-// ====================================
-if (authRoutes) {
-  app.use('/api/auth', authRoutes);
-  console.log('✅ Mounted /api/auth routes');
-}
-
-if (userRoutes) {
-  app.use('/api/users', userRoutes);
-  console.log('✅ Mounted /api/users routes');
-}
-
-if (recipeRoutes) {
-  app.use('/api/recipes', recipeRoutes);
-  console.log('✅ Mounted /api/recipes routes');
-}
-
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error('❌ Error:', err.stack);
-  res.status(err.status || 500).json({
-    error: {
-      message: err.message || 'Internal Server Error',
-      status: err.status || 500
-    }
-  });
-});
-
+// ============================================
+// ERROR HANDLING
+// ============================================
 // 404 handler
 app.use((req, res) => {
-  res.status(404).json({
-    error: {
-      message: 'Route not found',
-      requested: `${req.method} ${req.url}`,
-      status: 404
-    }
+  res.status(404).json({ 
+    error: 'Route not found',
+    path: req.path,
+    method: req.method
   });
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log('\n🚀 ======================================');
-  console.log(`   FOODSHARE API Server`);
-  console.log('   ======================================');
-  console.log(`   📍 URL: http://localhost:${PORT}`);
-  console.log(`   🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log('   ======================================\n');
-  
-  if (authRoutes) {
-    console.log('   📝 Test registration:');
-    console.log(`   curl -X POST http://localhost:${PORT}/api/auth/register \\`);
-    console.log(`     -H "Content-Type: application/json" \\`);
-    console.log(`     -d '{"first_name":"John","last_name":"Doe","email":"test@test.com","password":"password123"}'`);
-    console.log('\n   ======================================\n');
-  } else {
-    console.log('   ⚠️  Auth routes not loaded - check routes folder\n');
-  }
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  res.status(err.status || 500).json({ 
+    error: err.message || 'Internal server error' 
+  });
 });
+
+// ============================================
+// DATABASE & SERVER START
+// ============================================
+const PORT = process.env.PORT || 3000;
+
+// Sync database and start server
+db.sequelize.sync({ alter: true })
+  .then(() => {
+    console.log('✅ Database synced successfully');
+    app.listen(PORT, () => {
+      console.log(`🚀 Server is running on http://localhost:${PORT}`);
+      console.log(`📝 API Endpoints:`);
+      console.log(`   POST http://localhost:${PORT}/api/auth/register`);
+      console.log(`   POST http://localhost:${PORT}/api/auth/login`);
+      console.log(`   GET  http://localhost:${PORT}/api/auth/me`);
+    });
+  })
+  .catch(err => {
+    console.error('❌ Unable to sync database:', err);
+    process.exit(1);
+  });
 
 module.exports = app;
