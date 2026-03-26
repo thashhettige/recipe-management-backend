@@ -1,78 +1,56 @@
-// controllers/AuthController.js
-// This is EXACTLY like Laravel's AuthController!
-
 const jwt = require('jsonwebtoken');
 const { User } = require('../models');
 
 class AuthController {
-  /**
-   * Register a new user
-   * Like Laravel: public function register(Request $request)
-   */
-  async register(req, res) {
+  async register(request, response) {
     try {
-      const { first_name, last_name, email, password } = req.body;
+      const { first_name, last_name, email, password } = request.body;
 
-      // Validate (like Laravel's $request->validate())
-      if (!first_name || !last_name || !email || !password) {
-        return res.status(400).json({
-          error: 'All fields are required'
-        });
-      }
-
-      // Check if exists (like Laravel's User::where('email', $email)->first())
+      //If user exist
       const existingUser = await User.findOne({ where: { email } });
+
       if (existingUser) {
-        return res.status(400).json({ error: 'Email already registered' });
+        return response.status(400).json({ error: 'Email already registered' });
       }
 
-      // Create user (like Laravel's User::create($data))
+      //create user
       const user = await User.create({
         first_name,
         last_name,
         email,
-        password // Will be hashed automatically in the model
+        password
       });
 
-      // Generate JWT token
+      //generate token
       const token = jwt.sign(
         { id: user.id, email: user.email },
         process.env.JWT_SECRET,
         { expiresIn: '7d' }
       );
 
-      // Return response (like Laravel's return response()->json())
-      return res.status(201).json({
+      //return response
+      return response.status(201).json({
         message: 'User registered successfully',
         token,
         user: {
           id: user.id,
-          first_name: user.first_name,
-          last_name: user.last_name,
+          firstName: user.firstName,
+          lastName: user.lastName,
           email: user.email
         }
       });
     } catch (error) {
       console.error('Registration error:', error);
-      return res.status(500).json({ error: error.message });
+      return response.status(500).json({ error: error.message });
     }
   }
 
-  /**
-   * Login user
-   * Like Laravel: public function login(Request $request)
-   */
   async login(req, res) {
     try {
       const { email, password } = req.body;
 
-      if (!email || !password) {
-        return res.status(400).json({
-          error: 'Email and password are required'
-        });
-      }
-
       const user = await User.findOne({ where: { email } });
+      
       if (!user) {
         return res.status(401).json({ error: 'Invalid credentials' });
       }

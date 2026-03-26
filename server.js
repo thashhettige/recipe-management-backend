@@ -1,4 +1,3 @@
-// server.js
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -9,18 +8,8 @@ const app = express();
 // ============================================
 // MIDDLEWARE
 // ============================================
-// Enable CORS for your frontend - Allow multiple origins
 app.use(cors({
-  origin: [
-    'http://localhost:5173',  // Vite default
-    'http://localhost:5174',  // Vite alternative
-    'http://localhost:3000',  // React default
-    'http://localhost:3001',  // React alternative
-    'http://127.0.0.1:5173',
-    'http://127.0.0.1:5174',
-    'http://127.0.0.1:3000',
-    'http://127.0.0.1:3001'
-  ],
+  origin: process.env.CORS_ORIGINS?.split(',').map(o => o.trim()) || [],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -85,17 +74,12 @@ const PORT = process.env.PORT || 3000;
 // Sync database and start server
 db.sequelize.sync({ alter: true })
   .then(() => {
-    console.log('✅ Database synced successfully');
+    console.log('Database synced successfully');
     app.listen(PORT, () => {
-      console.log(`🚀 Server is running on http://localhost:${PORT}`);
-      console.log(`📝 API Endpoints:`);
-      console.log(`   POST http://localhost:${PORT}/api/auth/register`);
-      console.log(`   POST http://localhost:${PORT}/api/auth/login`);
-      console.log(`   GET  http://localhost:${PORT}/api/auth/me`);
     });
   })
   .catch(err => {
-    console.error('❌ Unable to sync database:', err);
+    console.error('Unable to sync database:', err);
     process.exit(1);
   });
 

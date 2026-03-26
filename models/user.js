@@ -5,37 +5,29 @@ const bcrypt = require('bcryptjs');
 
 module.exports = (sequelize, DataTypes) => {
   class User extends Model {
-    /**
-     * Helper method for defining associations.
-     * This method is not a part of Sequelize lifecycle.
-     * The `models/index` file will call this method automatically.
-     */
-    static associate(models) {
-      // User has many recipes
+     static associate(models) {
+    
+      //relationships
       User.hasMany(models.Recipe, {
         foreignKey: 'user_id',
         as: 'recipes'
       });
 
-      // User has many likes
       User.hasMany(models.Like, {
         foreignKey: 'user_id',
         as: 'likes'
       });
 
-      // User has many comments
       User.hasMany(models.Comment, {
         foreignKey: 'user_id',
         as: 'comments'
       });
 
-      // User has many shared posts
       User.hasMany(models.SharedPost, {
         foreignKey: 'user_id',
         as: 'sharedPosts'
       });
 
-      // Many-to-Many: User follows many users (following)
       User.belongsToMany(models.User, {
         through: models.UserFollow,
         as: 'following',
@@ -43,7 +35,6 @@ module.exports = (sequelize, DataTypes) => {
         otherKey: 'following_id'
       });
 
-      // Many-to-Many: User has many followers
       User.belongsToMany(models.User, {
         through: models.UserFollow,
         as: 'followers',
@@ -51,7 +42,6 @@ module.exports = (sequelize, DataTypes) => {
         otherKey: 'follower_id'
       });
 
-      // Many-to-Many: User liked recipes
       User.belongsToMany(models.Recipe, {
         through: models.Like,
         as: 'likedRecipes',
@@ -60,41 +50,29 @@ module.exports = (sequelize, DataTypes) => {
       });
     }
 
-    // Instance Methods
-
-    /**
-     * Check if password is valid
-     */
+    //instance methods
     async validatePassword(password) {
       return await bcrypt.compare(password, this.password);
     }
 
-    /**
-     * Check if user is following another user
-     */
+    //check if user is following another user
     async isFollowing(userId) {
       const following = await this.getFollowing({ where: { id: userId } });
       return following.length > 0;
     }
 
-    /**
-     * Check if user has liked a recipe
-     */
+    //check if user has liked a recipe
     async hasLiked(recipeId) {
       const liked = await this.getLikedRecipes({ where: { id: recipeId } });
       return liked.length > 0;
     }
 
-    /**
-     * Get user's full name
-     */
+    //get user's full name
     getFullName() {
       return `${this.first_name} ${this.last_name}`;
     }
 
-    /**
-     * Convert to JSON (exclude password)
-     */
+    //convert to json (exclude password)
     toJSON() {
       const values = { ...this.get() };
       delete values.password;
